@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDF 压缩工具（网页版）</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+     background:#F5F6F8;color:#1F2937;padding:28px 20px}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:26px;font-weight:700;margin-bottom:6px}
+.sub{color:#6B7280;font-size:13px;margin-bottom:24px}
+.card{background:#fff;border-radius:12px;padding:20px;
+      box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px}
+.card h2{font-size:15px;font-weight:700;margin-bottom:14px;color:#374151}
+
+/* 拖拽区 */
+#drop{border:2px dashed #BFDBFE;border-radius:12px;background:#EFF6FF;
+      padding:38px 20px;text-align:center;cursor:pointer;transition:.2s}
+#drop:hover,#drop.hot{border-color:#2563EB;background:#DBEAFE}
+#drop .ico{font-size:40px;line-height:1}
+#drop .t1{font-size:17px;font-weight:700;margin:10px 0 4px;color:#1F2937}
+#drop .t2{font-size:12px;color:#6B7280}
+#drop input{display:none}
+
+/* 参数 */
+.row{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.row label{font-size:13px;font-weight:600;width:96px;color:#374151}
+.row input[type=range]{flex:1;min-width:200px;accent-color:#2563EB}
+.row .val{font-size:13px;font-weight:700;color:#2563EB;width:56px;text-align:right}
+.hint{font-size:11px;color:#9CA3AF;margin:-8px 0 14px 108px}
+.presets{display:flex;gap:8px;margin-left:108px;flex-wrap:wrap}
+.presets button{padding:5px 13px;border:none;border-radius:6px;background:#F3F4F6;
+                color:#374151;font-size:12px;cursor:pointer;font-weight:600}
+.presets button:hover{background:#E5E7EB}
+.presets button.on{background:#2563EB;color:#fff}
+.chk{display:flex;align-items:center;gap:7px;font-size:13px;color:#374151;cursor:pointer}
+.chk input{accent-color:#2563EB;width:15px;height:15px}
+
+/* 按钮 */
+.btns{display:flex;gap:10px;margin-top:4px}
+.btn{flex:1;padding:13px;border:none;border-radius:9px;font-size:15px;font-weight:700;
+     cursor:pointer;transition:.15s}
+.btn-p{background:#2563EB;color:#fff}
+.btn-p:hover:not(:disabled){background:#1D4ED8}
+.btn-p:disabled{background:#9CA3AF;cursor:not-allowed}
+.btn-s{background:#F3F4F6;color:#374151;flex:0 0 auto;padding:13px 20px;font-size:13px}
+.btn-s:hover{background:#E5E7EB}
+.btn-s:disabled{opacity:.45;cursor:not-allowed}
+
+/* 进度 */
+.bar{height:7px;background:#E5E7EB;border-radius:4px;overflow:hidden;margin:14px 0 8px}
+.bar i{display:block;height:100%;width:0;background:#2563EB;transition:width .25s}
+.pmsg{font-size:12px;color:#6B7280}
+
+/* 结果 */
+.kv{display:flex;justify-content:space-between;padding:9px 0;
+    border-bottom:1px solid #F3F4F6;font-size:13px}
+.kv:last-child{border:none}
+.kv .k{color:#6B7280}
+.kv .v{font-weight:700;font-variant-numeric:tabular-nums}
+.big{font-size:30px;font-weight:800;color:#16A34A;line-height:1.3}
+.pages{margin-top:10px;font-size:11px;color:#9CA3AF;font-family:ui-monospace,monospace;
+      max-height:130px;overflow:auto;background:#F9FAFB;padding:9px;border-radius:6px}
+.pages div{padding:2px 0}
+
+/* 对比 */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cmp figure{margin:0;text-align:center}
+.cmp .ph{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;
+         min-height:210px;display:flex;align-items:center;justify-content:center;
+         overflow:hidden;padding:5px}
+.cmp img{max-width:100%;max-height:340px;display:block}
+.cmp figcaption{font-size:12px;font-weight:700;margin-top:7px;color:#6B7280}
+.cmp .ph span{color:#D1D5DB;font-size:12px}
+
+.vq{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#374151;margin-top:4px}
+.vq b{color:#16A34A}
+.note{font-size:11px;color:#9CA3AF;margin-top:9px;line-height:1.7}
+#log{background:#1E293B;color:#E2E8F0;font-family:ui-monospace,monospace;font-size:11px;
+     padding:13px;border-radius:8px;height:150px;overflow:auto;line-height:1.75;white-space:pre-wrap}
+.hide{display:none!important}
+a.dl{display:block;text-align:center;margin-top:14px;padding:12px;background:#16A34A;
+     color:#fff;border-radius:9px;text-decoration:none;font-weight:700;font-size:14px}
+a.dl:hover{background:#15803D}
+
+/* 诊断表 */
+.diag{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.diag div{background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px}
+.diag .dk{font-size:11px;color:#9CA3AF;margin-bottom:3px}
+.diag .dv{font-size:16px;font-weight:800;color:#374151}
+.warn{font-size:12px;color:#B45309;background:#FEF3C7;border-radius:8px;
+      padding:9px 12px;margin-top:11px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PDF 压缩工具</h1>
+  <div class="sub">拖拽 PDF 到下方区域即可压缩 · 图片型 PDF 通常可压缩 100 倍以上 · 全程本地处理，文件不上传</div>
+
+  <div class="card">
+    <div id="drop">
+      <div class="ico">⬆</div>
+      <div class="t1" id="dt1">拖拽 PDF 到此处</div>
+      <div class="t2" id="dt2">或点击此处选择文件 · 支持批量</div>
+      <input type="file" id="file" accept="application/pdf,.pdf" multiple>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>压缩参数</h2>
+    <div class="row">
+      <label>分辨率倍率</label>
+      <input type="range" id="zoom" min="1.5" max="8" step="0.5" value="4">
+      <span class="val" id="zoomV">4.0x</span>
+    </div>
+    <div class="hint">倍率越高越清晰、体积越大；报表类建议 3.5x ~ 4.5x</div>
+
+    <div class="row">
+      <label>图片质量</label>
+      <input type="range" id="qual" min="60" max="98" step="1" value="92">
+      <span class="val" id="qualV">92</span>
+    </div>
+    <div class="presets" id="presets">
+      <button data-z="2.5" data-q="85">极致压缩</button>
+      <button data-z="4" data-q="92" class="on">均衡（推荐）</button>
+      <button data-z="5.5" data-q="95">高清</button>
+      <button data-z="8" data-q="98">最高质量</button>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <label class="chk" style="width:auto"><input type="checkbox" id="vchk" checked>压缩后自动比对像素差异（校验画质）</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="btns">
+      <button class="btn btn-p" id="go" disabled>开始压缩</button>
+      <button class="btn btn-s" id="redl" disabled>重新下载</button>
+    </div>
+    <div class="bar hide" id="bar"><i></i></div>
+    <div class="pmsg hide" id="pmsg"></div>
+  </div>
+
+  <div class="card hide" id="dcard">
+    <h2>文件诊断</h2>
+    <div class="diag" id="diag"></div>
+    <div class="warn" id="warn"></div>
+  </div>
+
+  <div class="card hide" id="rcard">
+    <h2>压缩结果</h2>
+    <div class="big" id="ratio">—</div>
+    <div class="kv"><span class="k">原大小</span><span class="v" id="s1">—</span></div>
+    <div class="kv"><span class="k">压缩后</span><span class="v" id="s2">—</span></div>
+    <div class="kv"><span class="k">节省空间</span><span class="v" id="saved">—</span></div>
+    <div class="kv"><span class="k">输出文件</span><span class="v" id="outn">—</span></div>
+    <div class="pages" id="pages"></div>
+    <a class="dl hide" id="dl" download>下载压缩后的 PDF</a>
+  </div>
+
+  <div class="card hide" id="vcard">
+    <h2>质量校验</h2>
+    <div class="vq" id="vq"></div>
+    <div class="note">「差异 ≤5」指每个像素的 RGB 通道最大偏差在 5 以内（肉眼基本不可见）。
+       占比越高代表画质越接近原文件。</div>
+  </div>
+
+  <div class="card hide" id="ccard">
+    <h2>视觉对比</h2>
+    <div class="cmp">
+      <figure><div class="ph" id="ph1"><span>压缩中…</span></div><figcaption>原文件</figcaption></figure>
+      <figure><div class="ph" id="ph2"><span>—</span></div><figcaption>压缩后</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>处理日志</h2>
+    <div id="log">等待输入 PDF 文件…</div>
+  </div>
+</div>
+
+<script>
+/* ============ 依赖加载（多 CDN 依次回退） ============ */
+const LIBS=[
+  {name:'pdf.js',
+   test:()=>typeof pdfjsLib!=='undefined',
+   urls:['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+         'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',
+         'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js']},
+  {name:'pdf-lib',
+   test:()=>typeof PDFLib!=='undefined',
+   urls:['https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
+         'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+         'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js']}
+];
+const LIB_BASE={};
+function loadScript(url){
+  return new Promise((res,rej)=>{
+    const t=document.createElement('script');
+    t.src=url;t.async=true;
+    t.onload=()=>res(url);
+    t.onerror=()=>{t.remove();rej(new Error('加载失败：'+url));};
+    document.head.appendChild(t);
+  });
+}
+async function loadLib(spec){
+  for(const u of spec.urls){
+    try{
+      await loadScript(u);
+      if(spec.test()){LIB_BASE[spec.name]=u;return u;}
+    }catch(e){}
+  }
+  throw new Error(spec.name+' 加载失败：请检查网络，或 CDN 被浏览器/插件拦截');
+}
+
+/* ============ 基础 ============ */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LOGS=[{m:'等待输入 PDF 文件…',c:''}];
+function log(m,c){
+  LOGS.push({m:String(m),c:c||''});
+  const L=$('log');
+  L.innerHTML=LOGS.map(x=>x.c?'<span style="color:'+x.c+'">'+esc(x.m)+'</span>':esc(x.m)).join('\n');
+  L.scrollTop=L.scrollHeight;
+}
+const un=b=>{
+  if(b===null||b===undefined)return'0 B';
+  const u=['B','KB','MB','GB'];let i=0,f=Number(b);
+  while(f>=1024&&i<u.length-1){f/=1024;i++;}
+  return f.toFixed(2)+' '+u[i];
+};
+const fmtPx=n=>{
+  if(!n)return'0 px';
+  if(n>=1e8)return (n/1e8).toFixed(2)+' 亿 px';
+  if(n>=1e4)return (n/1e4).toFixed(2)+' 万 px';
+  return n+' px';
+};
+
+/* ============ 库就绪 ============ */
+/* worker 与主脚本必须同版本：从实际加载成功的 pdf.js 地址推导 */
+function workerSrc(){
+  const base=LIB_BASE['pdf.js']||'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  return base.replace(/pdf(\.min)?\.js(\?|$)/,'pdf.worker.min.js$2');
+}
+/* 把 worker 转成 blob URL，避免 file:// 打开时跨域 worker 被拦截 */
+async function setupWorker(){
+  const direct=workerSrc();
+  try{
+    const res=await fetch(direct,{mode:'cors'});
+    const txt=await res.text();
+    if(!txt||txt.length<1000)throw new Error('empty');
+    pdfjsLib.GlobalWorkerOptions.workerSrc=
+      URL.createObjectURL(new Blob([txt],{type:'application/javascript'}));
+  }catch(e){
+    pdfjsLib.GlobalWorkerOptions.workerSrc=direct;
+  }
+}
+
+/* 打开 PDF：worker 不可用时（如 file:// 限制）自动降级为主线程解析 */
+let NO_WORKER=false;
+async function openPdf(buf){
+  const data=new Uint8Array(buf);
+  if(!NO_WORKER){
+    try{
+      return await pdfjsLib.getDocument({data}).promise;
+    }catch(e){
+      if(!/worker/i.test(e&&e.message||''))throw e;
+      log('  worker 不可用，改用主线程解析（速度较慢）','#FBBF24');
+    }
+  }
+  NO_WORKER=true;
+  return await pdfjsLib.getDocument({data,disableWorker:true}).promise;
+}
+
+/* ============ 渲染工具 ============ */
+// canvas 面积上限（保守取 Safari 的 16.7M 像素）
+const MAX_PIXELS=16*1024*1024;
+const MAX_SIDE=8192;
+
+function safeScale(pageWpt,pageHpt,zoom){
+  let s=zoom;
+  const w=pageWpt*s,h=pageHpt*s;
+  if(w>MAX_SIDE||h>MAX_SIDE)s=Math.min(MAX_SIDE/w,MAX_SIDE/h);
+  if(w*h>MAX_PIXELS)s=Math.min(s,Math.sqrt(MAX_PIXELS/(w*h)));
+  return Math.max(0.2,s);
+}
+
+async function renderToCanvas(page,scale){
+  const vp=page.getViewport({scale});
+  const cv=document.createElement('canvas');
+  cv.width=Math.max(1,Math.floor(vp.width));
+  cv.height=Math.max(1,Math.floor(vp.height));
+  const ctx=cv.getContext('2d',{alpha:false});
+  ctx.fillStyle='#FFFFFF';
+  ctx.fillRect(0,0,cv.width,cv.height);
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  return cv;
+}
+
+/* 渲染失败（画布超限等）时自动降倍率重试 */
+async function renderWithFallback(page,baseScale){
+  let s=baseScale;
+  for(let i=0;i<3;i++){
+    try{
+      return {canvas:await renderToCanvas(page,s),scale:s};
+    }catch(e){
+      s=s*0.6;
+      if(s<0.3)throw e;
+    }
+  }
+  throw new Error('页面渲染失败');
+}
+
+function canvasToJpeg(cv,quality){
+  return new Promise(res=>{
+    cv.toBlob(b=>res(b),'image/jpeg',Math.max(0.05,Math.min(0.99,quality/100)));
+  });
+}
+
+/* ============ 诊断 ============ */
+async function diagnose(doc){
+  const r={pages:doc.numPages,textChars:0,images:0,imagePixels:0,filesize:0};
+  const OPS=pdfjsLib.OPS;
+  for(let i=1;i<=doc.numPages;i++){
+    const page=await doc.getPage(i);
+    try{
+      const tc=await page.getTextContent();
+      for(const it of tc.items){ if(it.str) r.textChars+=it.str.length; }
+    }catch(e){}
+    try{
+      const ops=await page.getOperatorList();
+      for(let k=0;k<ops.fnArray.length;k++){
+        const fn=ops.fnArray[k];
+        if(fn===OPS.paintImageXObject||fn===OPS.paintInlineImageXObject||
+           fn===OPS.paintImageXObjectRepeat||fn===OPS.paintInlineImageXObjectGroup){
+          r.images++;
+          // 取该页已解析的图片对象，统计像素量
+          try{
+            const id=ops.argsArray[k][0];
+            const objs=page.objs;
+            if(objs&&objs.has(id)){
+              const im=objs.get(id);
+              if(im&&im.width&&im.height){
+                r.imagePixels+=(im.bitmap?im.width*im.height:Math.floor((im.data?im.data.length:0)/4));
+              }
+            }
+          }catch(e){}
+        }
+      }
+    }catch(e){}
+  }
+  r.hasText=r.textChars>0;
+  return r;
+}
+
+/* ============ 质量校验 ============ */
+/* srcCanvas 已是压缩前的原图像素，jpegBytes 为同尺寸 JPEG —— 1:1 比对，只含 JPEG 损失 */
+async function verifyPixels(srcCanvas,jpegBytes){
+  const ctx1=srcCanvas.getContext('2d',{willReadFrequently:true});
+  const d1=ctx1.getImageData(0,0,srcCanvas.width,srcCanvas.height).data;
+
+  const bmp=await createImageBitmap(new Blob([jpegBytes],{type:'image/jpeg'}));
+  const c2=document.createElement('canvas');
+  c2.width=srcCanvas.width;c2.height=srcCanvas.height;
+  const ctx2=c2.getContext('2d',{willReadFrequently:true});
+  ctx2.fillStyle='#FFFFFF';ctx2.fillRect(0,0,c2.width,c2.height);
+  ctx2.drawImage(bmp,0,0,c2.width,c2.height);
+  const d2=ctx2.getImageData(0,0,c2.width,c2.height).data;
+  if(bmp.close)bmp.close();
+
+  const total=srcCanvas.width*srcCanvas.height;
+  let sum=0,n5=0,n12=0,mx=0;
+  for(let i=0;i<d1.length;i+=4){
+    const dr=Math.abs(d1[i]-d2[i]);
+    const dg=Math.abs(d1[i+1]-d2[i+1]);
+    const db=Math.abs(d1[i+2]-d2[i+2]);
+    const m=dr>dg?(dr>db?dr:db):(dg>db?dg:db);
+    sum+=m; if(m<=5)n5++; if(m<=12)n12++; if(m>mx)mx=m;
+  }
+  return {
+    size:srcCanvas.width+'x'+srcCanvas.height,
+    mean:+(sum/total).toFixed(3),
+    near5:+(n5/total*100).toFixed(2),
+    near12:+(n12/total*100).toFixed(2),
+    max:mx
+  };
+}
+
+/* ============ 单文件压缩 ============ */
+async function compressOne(file,zoom,quality,doVerify,onProgress){
+  const buf=await file.arrayBuffer();
+  const src=await openPdf(buf);
+
+  const out=await PDFLib.PDFDocument.create();
+  const pages=[];
+  const previews=[];
+  const verifyOut=[];
+  let usedZoom=zoom, autoScaled=false;
+
+  for(let i=1;i<=src.numPages;i++){
+    const page=await src.getPage(i);
+    const vp1=page.getViewport({scale:1});
+    const s=safeScale(vp1.width,vp1.height,zoom);
+    if(Math.abs(s-zoom)>0.01){autoScaled=true;usedZoom=s;}
+
+    const rf=await renderWithFallback(page,s);
+    if(Math.abs(rf.scale-s)>0.01){autoScaled=true;usedZoom=rf.scale;}
+    const cv=rf.canvas;
+    const blob=await canvasToJpeg(cv,quality);
+    const bytes=new Uint8Array(await blob.arrayBuffer());
+
+    const img=await out.embedJpg(bytes);
+    const pg=out.addPage([vp1.width,vp1.height]);
+    pg.drawImage(img,{x:0,y:0,width:vp1.width,height:vp1.height});
+
+    pages.push({page:i,px:cv.width+'x'+cv.height,bytes:bytes.length});
+
+    // 预览（首页，原图 + JPEG 效果）
+    if(i===1){
+      const th=await thumbOf(cv,460);
+      previews.push(th);
+      previews.push(await thumbFromJpeg(bytes,460));
+    }
+
+    if(doVerify){
+      const v=await verifyPixels(cv,bytes);
+      verifyOut.push(Object.assign({page:i},v));
+    }
+
+    onProgress&&onProgress(i,src.numPages,bytes.length);
+    page.cleanup&&page.cleanup();
+  }
+
+  const outBuf=await out.save({useObjectStreams:true});
+  await src.destroy&&src.destroy();
+
+  return {
+    name:(file.name.replace(/\.pdf$/i,''))+'_压缩.pdf',
+    orig:file.size,
+    out:outBuf.length,
+    pages:pages,
+    previews:previews,
+    verify:verifyOut,
+    autoScaled:autoScaled,
+    usedZoom:usedZoom,
+    blob:new Blob([outBuf],{type:'application/pdf'})
+  };
+}
+
+async function thumbOf(cv,w){
+  const sc=Math.min(1,w/cv.width);
+  const t=document.createElement('canvas');
+  t.width=Math.max(1,Math.floor(cv.width*sc));
+  t.height=Math.max(1,Math.floor(cv.height*sc));
+  t.getContext('2d').drawImage(cv,0,0,t.width,t.height);
+  return t.toDataURL('image/jpeg',0.82);
+}
+async function thumbFromJpeg(bytes,w){
+  const bmp=await createImageBitmap(new Blob([bytes],{type:'image/jpeg'}));
+  const sc=Math.min(1,w/bmp.width);
+  const t=document.createElement('canvas');
+  t.width=Math.max(1,Math.floor(bmp.width*sc));
+  t.height=Math.max(1,Math.floor(bmp.height*sc));
+  t.getContext('2d').drawImage(bmp,0,0,t.width,t.height);
+  if(bmp.close)bmp.close();
+  return t.toDataURL('image/jpeg',0.82);
+}
+
+/* ============ 下载 ============ */
+let lastBlob=null,lastName='';
+function download(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+}
+
+/* ============ 交互 ============ */
+let FILES=[],BUSY=false;
+
+const dz=$('drop');
+['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{
+  ev.preventDefault();dz.classList.add('hot');}));
+['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{
+  ev.preventDefault();dz.classList.remove('hot');}));
+dz.addEventListener('drop',ev=>{
+  const fs=[...ev.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.pdf'));
+  if(!fs.length)return log('⚠ 仅支持 PDF 文件','#FBBF24');
+  add(fs);});
+dz.addEventListener('click',()=>$('file').click());
+$('file').onchange=e=>add([...e.target.files]);
+
+function add(fs){
+  FILES=fs;BUSY=false;lastBlob=null;
+  log('─'.repeat(44));
+  log('已选择 '+fs.length+' 个文件');
+  fs.forEach(f=>log('  · '+f.name+'  ('+un(f.size)+')'));
+  $('go').disabled=false;
+  $('go').textContent='开始压缩（'+fs.length+' 个文件）';
+  $('dt1').textContent='已选择 '+fs.length+' 个 PDF';
+  $('redl').disabled=true;
+  ['rcard','vcard','ccard','dcard'].forEach(i=>$(i).classList.add('hide'));
+}
+
+$('zoom').oninput=e=>{$('zoomV').textContent=(+e.target.value).toFixed(1)+'x';};
+$('qual').oninput=e=>{$('qualV').textContent=e.target.value;};
+document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#presets button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  $('zoom').value=b.dataset.z;$('qual').value=b.dataset.q;
+  $('zoomV').textContent=(+b.dataset.z).toFixed(1)+'x';$('qualV').textContent=b.dataset.q;
+});
+
+$('redl').onclick=()=>{ if(lastBlob)download(lastBlob,lastName); };
+
+$('go').onclick=async()=>{
+  if(BUSY||!FILES.length)return;
+  BUSY=true;$('go').disabled=true;$('go').textContent='压缩中…';
+  $('bar').classList.remove('hide');$('pmsg').classList.remove('hide');
+  $('redl').disabled=true;
+  ['rcard','vcard','ccard','dcard'].forEach(i=>$(i).classList.add('hide'));
+  $('dl').classList.add('hide');
+  $('ph1').innerHTML='<span>生成预览…</span>';
+
+  try{
+    for(const spec of LIBS){
+      if(!spec.test()){
+        log('正在加载 '+spec.name+' …');
+        await loadLib(spec);
+      }
+    }
+    await setupWorker();
+
+    const zoom=+$('zoom').value;
+    const quality=+$('qual').value;
+    const doVerify=$('vchk').checked;
+
+    const results=[];
+    let totalIn=0,totalOut=0;
+    let firstDiag=null;
+    let autoScaledMsg=false;
+    let firstUsedZoom=zoom;
+
+    for(let fi=0;fi<FILES.length;fi++){
+      const f=FILES[fi];
+      log('▶ 处理：'+f.name+'（'+(fi+1)+'/'+FILES.length+'）','#93C5FD');
+
+      // 诊断
+      try{
+        const buf=await f.arrayBuffer();
+        const d=await openPdf(buf);
+        const dg=await diagnose(d);
+        dg.filesize=f.size;
+        await d.destroy&&d.destroy();
+        if(fi===0)firstDiag=dg;
+        log('  诊断：'+dg.pages+' 页 · 图片 '+dg.images+' 张 · 图片像素量 '+fmtPx(dg.imagePixels)+
+            ' · 文本 '+(dg.hasText?'有文本层':'纯图片'));
+      }catch(e){ log('  诊断失败：'+e.message,'#F87171'); }
+
+      const r=await compressOne(f,zoom,quality,doVerify,(cur,tot,bytes)=>{
+        const pct=Math.round(((fi+cur/tot)/FILES.length)*100);
+        $('bar').firstElementChild.style.width=pct+'%';
+        $('pmsg').textContent='第 '+cur+'/'+tot+' 页 · 本页 '+un(bytes)+' · 总进度 '+pct+'%';
+      });
+      if(r.autoScaled)autoScaledMsg=true;
+      if(fi===0)firstUsedZoom=r.usedZoom;
+      results.push(r);
+      totalIn+=r.orig;totalOut+=r.out;
+      log('  ✓ 输出 '+r.name+'（'+un(r.out)+'）','#4ADE80');
+      await new Promise(s=>setTimeout(s,50));
+    }
+
+    /* 诊断卡 */
+    if(firstDiag){
+      const d=firstDiag;
+      $('diag').innerHTML=
+        '<div><div class="dk">页数</div><div class="dv">'+d.pages+'</div></div>'+
+        '<div><div class="dk">图片数量</div><div class="dv">'+d.images+'</div></div>'+
+        '<div><div class="dk">图片像素量</div><div class="dv">'+fmtPx(d.imagePixels)+'</div></div>'+
+        '<div><div class="dk">文本层</div><div class="dv">'+(d.hasText?'有':'无')+'</div></div>';
+      $('dcard').classList.remove('hide');
+      if(autoScaledMsg){
+        $('warn').style.display='block';
+        $('warn').textContent='提示：部分页面尺寸较大，为避免浏览器 canvas 超限，已自动下调渲染倍率（不影响页面尺寸与打印版式）。';
+      }
+      if(d.images===0&&d.hasText){
+        $('warn').style.display='block';
+        $('warn').textContent='提示：该文档以文本为主、几乎不含图片。'
+          +'本工具通过「整页转图片」压缩，此类文件转换后体积通常会显著变大，建议直接使用原文件。';
+      }
+    }
+
+    /* 汇总 */
+    const rt=totalIn/totalOut, sv=(1-totalOut/totalIn)*100;
+    const grew=totalOut>totalIn;
+    $('ratio').textContent=grew?('体积增大 '+(totalOut/totalIn).toFixed(2)+' 倍')
+                              :(rt.toFixed(1)+' 倍压缩');
+    $('ratio').style.color=grew?'#B45309':'#16A34A';
+    $('s1').textContent=un(totalIn);
+    $('s2').textContent=un(totalOut);
+    $('saved').textContent=grew?('-'+(-sv).toFixed(1)+'%'):(sv.toFixed(1)+'%');
+    $('rcard').classList.remove('hide');
+
+    if(results.length===1){
+      const x=results[0];
+      $('outn').textContent=x.name;
+      $('pages').innerHTML=x.pages.map(p=>'<div>第'+p.page+'页 '+p.px+' → '+un(p.bytes)+'</div>').join('');
+      lastBlob=x.blob;lastName=x.name;
+      $('dl').href=URL.createObjectURL(x.blob);
+      $('dl').setAttribute('download',x.name);
+      $('dl').textContent='下载：'+x.name;
+      $('dl').classList.remove('hide');
+      $('redl').disabled=false;
+      download(x.blob,x.name);
+
+      if(x.verify&&x.verify.length){
+        $('vcard').classList.remove('hide');
+        $('vq').innerHTML=x.verify.map(v=>
+          '<span>第'+v.page+'页 · 平均差异 <b>'+v.mean+'</b></span>'+
+          '<span>差异≤5 <b>'+v.near5+'%</b></span>'+
+          '<span>差异≤12 <b>'+v.near12+'%</b></span>').join('');
+        const worst=x.verify.reduce((m,v)=>Math.min(m,v.near5),100);
+        if(worst>=90){
+          log('✓ 质量校验通过：绝大多数像素差异肉眼不可见','#4ADE80');
+        }else{
+          log('⚠ 质量校验：部分页面差异偏大（最小 ≤5 占比 '+worst+'%），建议提高图片质量或降低分辨率倍率','#FBBF24');
+        }
+      }
+      if(x.previews&&x.previews.length){
+        $('ccard').classList.remove('hide');
+        $('ph1').innerHTML='<img src="'+x.previews[0]+'">';
+        if(x.previews[1])$('ph2').innerHTML='<img src="'+x.previews[1]+'">';
+      }
+    }else{
+      $('outn').textContent=results.length+' 个文件';
+      $('pages').innerHTML=results.map(x=>'<div>'+x.name+'：'+un(x.orig)+' → '+un(x.out)+'</div>').join('');
+      for(let i=0;i<results.length;i++){
+        download(results[i].blob,results[i].name);
+        await new Promise(s=>setTimeout(s,400));
+      }
+      log('共 '+results.length+' 个文件，已开始逐个下载','#4ADE80');
+    }
+
+    log('✓ 压缩完成：'+un(totalIn)+' → '+un(totalOut)+
+        (grew?('（体积增大，建议改用「极致压缩」或调低倍率）')
+             :('（'+rt.toFixed(1)+' 倍，节省 '+sv.toFixed(1)+'%）')),
+        grew?'#FBBF24':'#4ADE80');
+    if(autoScaledMsg){
+      log('  · 有页面因尺寸过大自动下调了渲染倍率，实际使用 '+firstUsedZoom.toFixed(2)+'x','#93C5FD');
+    }
+  }catch(e){
+    log('✗ 出错：'+e.message,'#F87171');
+    alert('压缩失败：'+e.message);
+  }finally{
+    BUSY=false;
+    $('go').disabled=false;
+    $('go').textContent=FILES.length>1?('重新压缩（'+FILES.length+' 个）'):'开始压缩';
+    $('bar').classList.remove('hide');
+    $('bar').firstElementChild.style.width='100%';
+    setTimeout(()=>{$('bar').classList.add('hide');$('pmsg').classList.add('hide');},800);
+  }
+};
+</script>
+</body>
+</html>
